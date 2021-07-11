@@ -5,7 +5,7 @@ from datetime import datetime
 from fpdf import FPDF
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+
 
 class Reader:
     def __init__(self, path, path_fin):
@@ -15,7 +15,6 @@ class Reader:
         self.get_files()
         self.plot()
 
-
     def get_files(self):
         for p in os.listdir(self.path):
             if os.path.isfile(p) and p.endswith('.csv') or p.endswith('.CSV'):
@@ -23,7 +22,6 @@ class Reader:
                 print(p)
                 self.df['Buchungstag_YYYY'] = self.df['Buchungstag'].apply(lambda a: self._year_trafo(a, trafo=True))
                 self.df['Valutadatum_YYYY'] = self.df['Valutadatum'].apply(lambda a: self._year_trafo(a, trafo=True))
-
 
     def create_dash(self):
         pass
@@ -66,9 +64,6 @@ class Reader:
                 return date_
             else:
                 return year_, month_, day_
-
-
-
 
 
 class PDFCreator:
