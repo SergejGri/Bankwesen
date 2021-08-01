@@ -11,13 +11,32 @@ class DB():
     def __init__(self):
         self.conn = sqlite3.connect('credit.db')
         self.c = self.conn.cursor()
-        if not os.path.isfile('credit.db'):
-            self.c.execute("""CREATE TABLE credit (
-                    date TEXT,
-                    value REAL
-                )""")
-            self.conn.commit()
-            self.conn.close()
+        self.c.execute("""CREATE TABLE IF NOT EXISTS credit (
+                        date TEXT,
+                        value REAL
+                        )""")
+        self.conn.commit()
+        self.conn.close()
+
+
+    def add_data(self, date, value):
+        self.conn = sqlite3.connect('credit.db')
+        self.c = self.conn.cursor()
+        # catch for
+        self.c.execute("""SELECT date, value
+                          FROM credit
+                          WHERE date=?
+                          OR value=?""",
+                    (date, value))
+
+        result = self.c.fetchone()
+
+        if result:
+            print('ignoring duplicates')
+        else:
+            with self.conn:
+                self.c.execute("INSERT INTO credit VALUES (?, ?)", (date, value))
+
 
 
 
@@ -33,7 +52,7 @@ class Reader:
         self.file = None
         self.dates = []
         self.values = []
-
+        self.db = DB()
         self.check_files()
 
 
@@ -57,37 +76,15 @@ class Reader:
                     #self.df['Valutadatum_YYYY'] = self.df['Valutadatum'].apply(lambda a: self._year_trafo(a, trafo=True))
 
 
-    def feldnummern(self):
-        Auftragsreferenz_Nr = ':20:'
-        Bezugsreferenz = ':21:'
-        Kontobezeichnung = ':25:'
-        saldo_x = ':60x:'
-        saldo_f = ':60F:'
-
-
     def parse_line(self):
         with open(self.file, 'r') as f:
             for line in f:
                 if ':60F:' in line:
-                    date_T= self._year_trafo(line.split('EUR')[0], trafo=True)
+                    z, date_T= self._year_trafo(line.split('EUR')[0], trafo=True)
                     credit = line.split('EUR')[1]
                     credit = credit.replace(',', '.')
-                    credit = float(credit)
-
-
-                    self.dates.append(date_T)
-                    self.values.append(credit)
-
-
-    def field_number_MT940(self):
-        pass
-
-
-    def create_dash(self):
-        pass
-
-    def db_key_word(self):
-        pass
+                    credit = int(z)*float(credit)
+                    self.db.add_data(date=date_T, value=credit)
 
     def plot(self):
         delta = self._get_delta_t()
@@ -114,20 +111,27 @@ class Reader:
         return delta
 
     def _year_trafo(self, expr, trafo=False):
+        z = 1
         if self.mode == 'MT940':
+            ex = expr[5]
+            if ex == 'D':
+                z = -1
             expr = expr[-6:]
             day_ = expr[-2:]
             month_ = expr[2:4]
             year_ = expr[:2]
         else:
+            ex = expr[5]
+            if ex == 'D':
+                z = -1
             year_ = expr.split('.')[2]
             month_ = expr.split('.')[1]
             day_ = expr.split('.')[0]
         if trafo:
             date_ = day_ + '.' + month_ + '.' + str(20) + year_
-            return date_
+            return z, date_
         else:
-            return year_, month_, day_
+            return z, year_, month_, day_
 
 
 class PDFCreator:
