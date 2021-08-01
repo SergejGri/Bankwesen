@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-class DB():
+class DB:
     def __init__(self):
         self.conn = sqlite3.connect('credit.db')
         self.c = self.conn.cursor()
@@ -18,27 +18,28 @@ class DB():
         self.conn.commit()
         self.conn.close()
 
-
     def add_data(self, date, value):
         self.conn = sqlite3.connect('credit.db')
         self.c = self.conn.cursor()
-        # catch for
-        self.c.execute("""SELECT date, value
-                          FROM credit
-                          WHERE date=?
-                          OR value=?""",
-                    (date, value))
+        self.c.execute("SELECT date, value FROM credit WHERE date=? OR value=?", (date, value))
 
-        result = self.c.fetchone()
+        duplicates = self.c.fetchone()
 
-        if result:
+        if duplicates:
             print('ignoring duplicates')
         else:
             with self.conn:
                 self.c.execute("INSERT INTO credit VALUES (?, ?)", (date, value))
 
-
-
+    def get_data(self):
+        self.conn = sqlite3.connect('credit.db')
+        self.c = self.conn.cursor()
+        self.c.execute("SELECT date, value FROM credit")
+        rows = self.c.fetchall()
+        date_list = [x[0] for x in rows]
+        value_list = [x[1] for x in rows]
+        self.c.close()
+        return date_list, value_list
 
 
 class Reader:
@@ -54,7 +55,6 @@ class Reader:
         self.values = []
         self.db = DB()
         self.check_files()
-
 
     def check_files(self):
         if self.mode == 'MT940':
@@ -135,4 +135,34 @@ class Reader:
 
 
 class PDFCreator:
-    pass
+    def __init__(self):
+        self.fig, self.ax = plt.subplots(nrows=1, ncols=1)
+        #self.ax.set_title('Test')
+        self.ax.set_xlabel('Date')
+        self.ax.set_ylabel('Value [\texteuro%1.0fB]')
+        self.db = DB()
+        self.plot()
+
+    def plot(self):
+        #delta = self._get_delta_t()
+        x, y = self.db.get_data()
+
+        #x = self.df['Buchungstag_YYYY']
+        #y = self.df['Betrag']
+
+        self.ax.set_xticklabels(x[::3], rotation=45)
+        #self.ax.set_xticks(x[::10])
+        #self.fig, ax = plt.subplots(nrows=1, ncols=1)
+        self.ax.plot(x, y)
+
+        plt.show()
+
+    '''
+    def _get_delta_t(self):
+        y0, m0, d0 = self._year_trafo(self.df['Buchungstag_YYYY'].min())
+        y1, m1, d1 = self._year_trafo(self.df['Buchungstag_YYYY'].max())
+        d0 = date(int(y0), int(m0), int(d0))
+        d1 = date(int(y1), int(m1), int(d1))
+        delta = d1 - d0
+        return delta
+    '''

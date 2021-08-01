@@ -13,6 +13,7 @@ def main():
 
     db_reader = rd.DB()
     csv_reader = rd.Reader(path_, path_fin_, mode='MT940')
+    pdf_creator = rd.PDFCreator()
 
 
     extend_db()
