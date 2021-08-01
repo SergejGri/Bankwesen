@@ -75,7 +75,6 @@ class Reader:
                     self.df['Buchungstag_YYYY'] = self.df['Buchungstag'].apply(lambda a: self._year_trafo(a, trafo=True))
                     #self.df['Valutadatum_YYYY'] = self.df['Valutadatum'].apply(lambda a: self._year_trafo(a, trafo=True))
 
-
     def parse_line(self):
         with open(self.file, 'r') as f:
             for line in f:
@@ -91,7 +90,6 @@ class Reader:
         #self.df = self.df.iloc[:, ::-1]
         x = self.df['Buchungstag_YYYY']
         y = self.df['Betrag']
-
 
         fig, ax = plt.subplots(nrows=1, ncols=1)
         ax.plot(x, y)
