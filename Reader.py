@@ -73,7 +73,6 @@ class Reader:
                     self.df = pd.read_csv(p, sep=";", encoding='cp1252')
                     print(p)
                     self.df['Buchungstag_YYYY'] = self.df['Buchungstag'].apply(lambda a: self._year_trafo(a, trafo=True))
-                    #self.df['Valutadatum_YYYY'] = self.df['Valutadatum'].apply(lambda a: self._year_trafo(a, trafo=True))
 
     def parse_line(self):
         with open(self.file, 'r') as f:
@@ -84,29 +83,6 @@ class Reader:
                     credit = credit.replace(',', '.')
                     credit = int(z)*float(credit)
                     self.db.add_data(date=date_T, value=credit)
-
-    def plot(self):
-        delta = self._get_delta_t()
-        #self.df = self.df.iloc[:, ::-1]
-        x = self.df['Buchungstag_YYYY']
-        y = self.df['Betrag']
-
-        fig, ax = plt.subplots(nrows=1, ncols=1)
-        ax.plot(x, y)
-        ax.set_xticklabels(x[::3], rotation=45)
-        ax.set_xticks(x[::10])
-        ax.set_title('Test')
-        ax.set_xlabel('Date')
-        ax.set_ylabel('Value [\texteuro%1.0fB]')
-        plt.show()
-
-    def _get_delta_t(self):
-        y0, m0, d0 = self._year_trafo(self.df['Buchungstag_YYYY'].min())
-        y1, m1, d1 = self._year_trafo(self.df['Buchungstag_YYYY'].max())
-        d0 = date(int(y0), int(m0), int(d0))
-        d1 = date(int(y1), int(m1), int(d1))
-        delta = d1 - d0
-        return delta
 
     def _year_trafo(self, expr, trafo=False):
         z = 1
@@ -141,15 +117,21 @@ class PDFCreator:
         self.db = DB()
         self.plot()
 
+    def _get_delta_t(self):
+        y0, m0, d0 = self._year_trafo(self.df['Buchungstag_YYYY'].min())
+        y1, m1, d1 = self._year_trafo(self.df['Buchungstag_YYYY'].max())
+        d0 = date(int(y0), int(m0), int(d0))
+        d1 = date(int(y1), int(m1), int(d1))
+        delta = d1 - d0
+        return delta
+
     def plot(self):
-        #delta = self._get_delta_t()
         x, y = self.db.get_data()
 
         #x = self.df['Buchungstag_YYYY']
         #y = self.df['Betrag']
 
-        self.ax.set_xticklabels(x[::3], rotation=45)
-        #self.ax.set_xticks(x[::10])
+        self.ax.set_xticklabels(x[::], rotation=45)
         #self.fig, ax = plt.subplots(nrows=1, ncols=1)
         self.ax.plot(x, y)
 
