@@ -1,5 +1,7 @@
 import os
 import sqlite3
+from scipy.interpolate import make_interp_spline, BSpline
+import numpy as np
 from datetime import date
 from datetime import datetime
 from fpdf import FPDF
@@ -46,6 +48,8 @@ class Reader:
     def __init__(self, path, path_fin, mode=None):
         self.path = path
         self.path_fin = path_fin
+        self.entries = 0
+        self.max_entries = 6
         self.df = None
         self.mode = mode
         if self.mode is None:
@@ -56,6 +60,7 @@ class Reader:
         self.db = DB()
         self.check_files()
 
+
     def check_files(self):
         if self.mode == 'MT940':
             for p in os.listdir(self.path):
@@ -63,6 +68,7 @@ class Reader:
                     with open(p, 'r') as f:
                         for line in f:
                             if ':20:STARTUMSE\n' in line:
+                                self.entries += 1
                                 f.close()
                                 self.file = p
                                 self.parse_line()
@@ -74,11 +80,12 @@ class Reader:
                     print(p)
                     self.df['Buchungstag_YYYY'] = self.df['Buchungstag'].apply(lambda a: self._year_trafo(a, trafo=True))
 
+
     def parse_line(self):
         with open(self.file, 'r') as f:
             for line in f:
                 if ':60F:' in line:
-                    z, date_T= self._year_trafo(line.split('EUR')[0], trafo=True)
+                    z, date_T= self._year_trafo(line.split('EUR')[0])
                     credit = line.split('EUR')[1]
                     credit = credit.replace(',', '.')
                     credit = int(z)*float(credit)
@@ -87,10 +94,12 @@ class Reader:
     def _year_trafo(self, expr, trafo=False):
         z = 1
         if self.mode == 'MT940':
+
             ex = expr[5]
             if ex == 'D':
                 z = -1
             expr = expr[-6:]
+            expr = expr.isoformat()
             day_ = expr[-2:]
             month_ = expr[2:4]
             year_ = expr[:2]
@@ -108,41 +117,41 @@ class Reader:
             return z, year_, month_, day_
 
 
+    def word_matcher(self):
+        pass
+
+
 class PDFCreator:
     def __init__(self):
-        self.fig, self.ax = plt.subplots(nrows=1, ncols=1)
-        #self.ax.set_title('Test')
-        self.ax.set_xlabel('Date')
-        self.ax.set_ylabel('Value [\texteuro%1.0fB]')
+        self.pdf = FPDF(orientation='P', unit='mm', format='A4')
+        self.pdf.add_page()
+        self.fig_w = 200
+        self.fig_h = 60
+        self.max_entries = 5
         self.db = DB()
-        self.plot()
+        self.glob_plot()
 
-    def _get_delta_t(self):
-        y0, m0, d0 = self._year_trafo(self.df['Buchungstag_YYYY'].min())
-        y1, m1, d1 = self._year_trafo(self.df['Buchungstag_YYYY'].max())
-        d0 = date(int(y0), int(m0), int(d0))
-        d1 = date(int(y1), int(m1), int(d1))
-        delta = d1 - d0
-        return delta
 
-    def plot(self):
+    def glob_plot(self):
+        mm = 1/25.4
+        self.fig, self.ax = plt.subplots(nrows=1, ncols=1, figsize=(self.fig_w*mm, self.fig_h*mm))
+        self.ax.set_xlabel('Date')
+        self.ax.set_ylabel('sales [\u20ac]')
         x, y = self.db.get_data()
 
-        #x = self.df['Buchungstag_YYYY']
-        #y = self.df['Betrag']
+        num_entries = self.get_etries(len(x))
 
-        self.ax.set_xticklabels(x[::], rotation=45)
-        #self.fig, ax = plt.subplots(nrows=1, ncols=1)
+        self.fig.suptitle('test title1', fontsize=20)
+        self.ax.set_xticklabels(x[::round(num_entries)], rotation=45, fontsize=10)
+        self.ax.set_yticklabels(y, rotation=0, fontsize=8)
         self.ax.plot(x, y)
+        self.fig.savefig('img.png', dpi=600)
 
-        plt.show()
 
-    '''
-    def _get_delta_t(self):
-        y0, m0, d0 = self._year_trafo(self.df['Buchungstag_YYYY'].min())
-        y1, m1, d1 = self._year_trafo(self.df['Buchungstag_YYYY'].max())
-        d0 = date(int(y0), int(m0), int(d0))
-        d1 = date(int(y1), int(m1), int(d1))
-        delta = d1 - d0
-        return delta
-    '''
+    def create_pdf(self):
+        self.pdf.image('img.png', x=None, y=None, w=self.fig_w, h=self.fig_h, type='png')
+        self.pdf.output('tuto1.pdf', 'F')
+        print('done.')
+
+    def get_etries(self, x):
+        return x/self.max_entries
